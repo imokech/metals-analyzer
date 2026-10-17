@@ -3,12 +3,150 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 226, 232, 240;
-  --background-rgb: 15, 23, 42;
+  /* Steep — colors */
+  --color-ink-black: #17191c;
+  --color-paper-white: #ffffff;
+  --color-mist-gray: #f2f2f3;
+  --color-fog-white: #fafafb;
+  --color-slate-gray: #777b86;
+  --color-ash-gray: #979799;
+  --color-smoke-gray: #a3a6af;
+  --color-blush-peach: #fbe1d1;
+  --color-sienna-brown: #5d2a1a;
+  --color-hairline: #ececec;
+
+  /* Surfaces */
+  --surface-canvas: #ffffff;
+  --surface-card-mist: #f2f2f3;
+  --surface-section-fog: #fafafb;
+  --surface-accent-blush: #fbe1d1;
+}
+
+* {
+  border-color: var(--color-hairline);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  color: var(--color-ink-black);
+  background: var(--surface-canvas);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01";
 }
 
+/* Editorial display type */
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+}
+
+/* ---- Reusable Steep component helpers ---- */
+
+.card {
+  background: var(--surface-card-mist);
+  border-radius: 24px;
+}
+
+.artifact {
+  background: var(--surface-canvas);
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px rgba(4, 23, 43, 0.05), 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.accent-card {
+  background: var(--surface-accent-blush);
+  color: var(--color-sienna-brown);
+  border-radius: 24px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-ink-black);
+  color: var(--color-paper-white);
+  border: 1px solid var(--color-ink-black);
+  border-radius: 9999px;
+  padding: 10px 20px;
+  font-size: 16px;
+  line-height: 1;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+.pill:hover {
+  opacity: 0.88;
+}
+.pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pill-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--color-ink-black);
+  border: 1px solid var(--color-ink-black);
+  border-radius: 9999px;
+  padding: 10px 20px;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+.pill-ghost:hover {
+  background: var(--color-mist-gray);
+}
+
+.tag {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-ash-gray);
+  letter-spacing: 0.02em;
+}
+
+.field {
+  background: var(--surface-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-size: 16px;
+  color: var(--color-ink-black);
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.field::placeholder {
+  color: var(--color-smoke-gray);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--color-ink-black);
+  box-shadow: 0 0 0 3px rgba(23, 25, 28, 0.06);
+}
+
+/* Quiet scrollbars to match the calm surface */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #e3e3e5;
+  border-radius: 9999px;
+  border: 3px solid var(--surface-canvas);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d4d4d7;
+}
+
+/* Persian numerals still lean on tabular alignment in tables */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

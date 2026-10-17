@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 
 interface MultiSelectProps {
     label: string;
@@ -16,6 +16,7 @@ export default function MultiSelect({
     placeholder = 'انتخاب کنید...',
 }: MultiSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [query, setQuery] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -24,12 +25,14 @@ export default function MultiSelect({
                 setIsOpen(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const filtered = useMemo(
+        () => options.filter((o) => o.toLowerCase().includes(query.toLowerCase())),
+        [options, query]
+    );
 
     const toggleOption = (option: string) => {
         if (selected.includes(option)) {
@@ -41,17 +44,17 @@ export default function MultiSelect({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <label className="block mb-2 text-sm font-medium text-slate-400">{label}</label>
+            <label className="mb-2 block text-[13px] text-slate">{label}</label>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5 text-right flex justify-between items-center"
+                className="field flex items-center justify-between !py-3 text-right"
             >
-                <span className="truncate">
-                    {selected.length > 0 ? `${selected.length} مورد انتخاب شده` : placeholder}
+                <span className={`truncate ${selected.length > 0 ? 'text-ink' : 'text-smoke'}`}>
+                    {selected.length > 0 ? `${selected.length.toLocaleString('fa-IR')} مورد انتخاب شده` : placeholder}
                 </span>
                 <svg
-                    className={`w-4 h-4 ml-2 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`h-4 w-4 text-slate transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -61,43 +64,36 @@ export default function MultiSelect({
             </button>
 
             {isOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    <div className="p-2 sticky top-0 bg-slate-800 border-b border-slate-700 z-10">
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-input bg-paper shadow-popover">
+                    <div className="sticky top-0 border-b border-hairline bg-paper p-2">
                         <input
                             type="text"
-                            placeholder="جستجو..."
-                            className="w-full bg-slate-700 text-slate-200 text-sm rounded border border-slate-600 p-2 focus:ring-sky-500 focus:border-sky-500"
+                            value={query}
+                            placeholder="جستجو…"
+                            className="field !rounded-smallcard !py-2 text-[14px]"
                             onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                                const searchTerm = e.target.value.toLowerCase();
-                                const items = document.querySelectorAll(`[data-option-value]`);
-                                items.forEach((item) => {
-                                    const value = item.getAttribute('data-option-value')?.toLowerCase() || '';
-                                    if (value.includes(searchTerm)) {
-                                        (item as HTMLElement).style.display = 'block';
-                                    } else {
-                                        (item as HTMLElement).style.display = 'none';
-                                    }
-                                });
-                            }}
+                            onChange={(e) => setQuery(e.target.value)}
                         />
                     </div>
-                    <ul className="p-2 space-y-1">
-                        {options.map((option) => (
-                            <li key={option} data-option-value={option}>
-                                <label className="flex items-center p-2 rounded hover:bg-slate-700 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={selected.includes(option)}
-                                        onChange={() => toggleOption(option)}
-                                        className="w-4 h-4 text-sky-600 bg-slate-700 border-slate-500 rounded focus:ring-sky-600 ring-offset-slate-800 focus:ring-2"
-                                    />
-                                    <span className="mr-2 text-sm text-slate-200">{option}</span>
-                                </label>
-                            </li>
-                        ))}
-                        {options.length === 0 && (
-                            <li className="p-2 text-sm text-slate-500 text-center">موردی یافت نشد</li>
+                    <ul className="p-2">
+                        {filtered.map((option) => {
+                            const active = selected.includes(option);
+                            return (
+                                <li key={option}>
+                                    <label className="flex cursor-pointer items-center gap-2 rounded-smallcard p-2 hover:bg-mist">
+                                        <input
+                                            type="checkbox"
+                                            checked={active}
+                                            onChange={() => toggleOption(option)}
+                                            className="h-4 w-4 rounded border-hairline text-ink accent-ink"
+                                        />
+                                        <span className="text-[14px] text-ink">{option}</span>
+                                    </label>
+                                </li>
+                            );
+                        })}
+                        {filtered.length === 0 && (
+                            <li className="p-3 text-center text-[14px] text-smoke">موردی یافت نشد</li>
                         )}
                     </ul>
                 </div>

@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { globalPrices } from "@/db/schema";
-import { GLOBAL_PRICE_MAPPINGS } from "@/lib/globalPricesMappings";
-import { eq } from "drizzle-orm";
+import { ensureGlobalPricesSeeded } from "@/lib/globalPrices";
 
 // GET - Retrieve all global prices
 export async function GET() {
@@ -21,36 +20,8 @@ export async function GET() {
 // POST - Seed/initialize the database with mappings
 export async function POST() {
     try {
-        // Check if data already exists
-        const existing = await db.select().from(globalPrices);
-
-        if (existing.length > 0) {
-            return NextResponse.json({
-                message: "Database already seeded",
-                data: existing
-            });
-        }
-
-        // Insert all mappings
-        const insertedPrices = await db
-            .insert(globalPrices)
-            .values(
-                GLOBAL_PRICE_MAPPINGS.map((mapping) => ({
-                    slug: mapping.slug,
-                    globalName: mapping.globalName,
-                    localLabel: mapping.localLabel,
-                    sourceUrl: mapping.sourceUrl,
-                    price: null,
-                    lastFetchedAt: null,
-                    manuallyUpdated: false,
-                }))
-            )
-            .returning();
-
-        return NextResponse.json({
-            message: "Database seeded successfully",
-            data: insertedPrices
-        });
+        const data = await ensureGlobalPricesSeeded();
+        return NextResponse.json({ message: "Global prices ready", data });
     } catch (error) {
         console.error("Error seeding database:", error);
         return NextResponse.json(

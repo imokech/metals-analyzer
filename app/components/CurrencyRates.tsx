@@ -1,81 +1,104 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Sparkline from './charts/Sparkline';
+import type { CurrencyRow } from './charts/chartUtils';
 
-interface CurrencyRate {
-    name: string;
-    price: number;
-    source: string;
-    loading: boolean;
-    error: string | null;
+interface Rates {
+    havaleh: number | null;
+    azad: number | null;
+}
+
+function fmt(n: number | null): string {
+    return n === null ? '—' : Math.round(n).toLocaleString('fa-IR');
+}
+
+interface StatCardProps {
+    label: string;
+    value: number | null;
+    series: number[];
+    accent?: boolean;
+    suffix?: string;
+}
+
+function StatCard({ label, value, series, accent, suffix = 'ریال' }: StatCardProps) {
+    const delta =
+        series.length >= 2 ? series[series.length - 1] - series[series.length - 2] : null;
+    const deltaPct =
+        delta !== null && series[series.length - 2] ? (delta / series[series.length - 2]) * 100 : null;
+
+    return (
+        <div className={`artifact flex flex-col justify-between p-5 ${accent ? '!bg-blush !shadow-none' : ''}`}>
+            <div className="flex items-start justify-between">
+                <span className={`tag ${accent ? '!text-sienna/70' : ''}`}>{label}</span>
+                <Sparkline data={series} stroke={accent ? '#5d2a1a' : '#5d2a1a'} fill={!accent} width={92} height={30} />
+            </div>
+            <div className="mt-4 flex items-end justify-between gap-2">
+                <p className={`font-display text-heading-sm tabular ${accent ? 'text-sienna' : 'text-ink'}`}>
+                    {fmt(value)}
+                    <span className={`mr-1 text-[13px] ${accent ? 'text-sienna/60' : 'text-slate'}`}>{suffix}</span>
+                </p>
+                {deltaPct !== null && (
+                    <span className={`text-[13px] tabular ${delta! >= 0 ? 'text-sienna' : 'text-slate'}`}>
+                        {delta! >= 0 ? '↑' : '↓'} {Math.abs(deltaPct).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
+                    </span>
+                )}
+            </div>
+        </div>
+    );
 }
 
 export default function CurrencyRates() {
-    const [rates, setRates] = useState<CurrencyRate[]>([
-        { name: 'نرخ حواله', price: 0, source: 'havaleh', loading: true, error: null },
-        { name: 'نرخ دلار بازار آزاد', price: 0, source: 'azad', loading: true, error: null },
-    ]);
+    const [rates, setRates] = useState<Rates>({ havaleh: null, azad: null });
+    const [history, setHistory] = useState<CurrencyRow[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchRates = async () => {
+        (async () => {
             try {
-                const response = await fetch('/api/currency-rates');
-                if (response.ok) {
-                    const result = await response.json();
-                    const data = result.data;
-
-                    setRates(prev => prev.map(r => {
-                        const price = data[r.source as keyof typeof data];
-                        if (price !== null && price !== undefined) {
-                            return { ...r, price, loading: false };
-                        } else {
-                            return { ...r, loading: false, error: 'دریافت نشد' };
-                        }
-                    }));
-                } else {
-                    setRates(prev => prev.map(r => ({ ...r, loading: false, error: 'خطا در دریافت' })));
+                const [ratesRes, histRes] = await Promise.all([
+                    fetch('/api/currency-rates'),
+                    fetch('/api/history?type=currency'),
+                ]);
+                if (ratesRes.ok) {
+                    const r = await ratesRes.json();
+                    if (r.data) setRates(r.data);
                 }
-            } catch (error) {
-                setRates(prev => prev.map(r => ({ ...r, loading: false, error: 'خطا در اتصال' })));
+                if (histRes.ok) {
+                    const h = await histRes.json();
+                    setHistory(h.data ?? []);
+                }
+            } catch (err) {
+                console.error('Error fetching currency rates:', err);
+            } finally {
+                setLoading(false);
             }
-        };
-
-        fetchRates();
+        })();
     }, []);
 
-    const formatPrice = (price: number): string => {
-        return price.toLocaleString('fa-IR');
-    };
+    const havalehSeries = [
+        ...history.map((h) => h.havaleh).filter((v): v is number => v !== null),
+        ...(rates.havaleh !== null ? [rates.havaleh] : []),
+    ];
+    const azadSeries = [
+        ...history.map((h) => h.azad).filter((v): v is number => v !== null),
+        ...(rates.azad !== null ? [rates.azad] : []),
+    ];
+    const spread = rates.azad !== null && rates.havaleh !== null ? rates.azad - rates.havaleh : null;
+    const spreadSeries = history
+        .filter((h) => h.azad !== null && h.havaleh !== null)
+        .map((h) => (h.azad as number) - (h.havaleh as number));
+    if (spread !== null) spreadSeries.push(spread);
+
+    if (loading) {
+        return <div className="card h-32 animate-pulse" />;
+    }
 
     return (
-        <div className="bg-slate-800 p-4 rounded-lg shadow-xl mb-6">
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-sky-400">نرخ‌های دلار</h2>
-                <span className="text-xs text-slate-500">قیمت‌ها به ریال</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {rates.map((rate) => (
-                    <div
-                        key={rate.source}
-                        className="bg-slate-700/50 p-4 rounded-lg border border-slate-600 hover:border-sky-500/50 transition-colors"
-                    >
-                        <div className="text-sm text-slate-400 mb-1">{rate.name}</div>
-                        {rate.loading ? (
-                            <div className="flex items-center gap-2">
-                                <div className="animate-spin h-4 w-4 border-2 border-sky-400 border-t-transparent rounded-full"></div>
-                                <span className="text-slate-500 text-sm">در حال دریافت...</span>
-                            </div>
-                        ) : rate.error ? (
-                            <div className="text-red-400 text-sm">{rate.error}</div>
-                        ) : (
-                            <div className="text-xl font-bold text-emerald-400">
-                                {formatPrice(rate.price)}
-                                <span className="text-sm text-slate-500 mr-2">ریال</span>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <StatCard label="دلار حواله" value={rates.havaleh} series={havalehSeries} />
+            <StatCard label="دلار بازار آزاد" value={rates.azad} series={azadSeries} />
+            <StatCard label="اختلاف بازار (آزاد − حواله)" value={spread} series={spreadSeries} accent />
         </div>
     );
 }

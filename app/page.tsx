@@ -8,226 +8,120 @@ import MultiSelect from './components/MultiSelect';
 import PairComparison from './components/PairComparison';
 import CurrencyRates from './components/CurrencyRates';
 import GlobalPrices from './components/GlobalPrices';
-import { getWeeksOfYear, getCurrentJalaliYear, WeekOption } from './utils/dateUtils';
+import PremiumTracker from './components/charts/PremiumTracker';
+import { getWeeksOfYear, getCurrentJalaliYear } from './utils/dateUtils';
+import { aggregate, getCommodityGroup } from '@/lib/aggregate';
 import * as XLSX from 'xlsx';
+
+interface GlobalPrice {
+  id: number;
+  slug: string;
+  globalName: string;
+  localLabel: string;
+  price: number | null;
+}
 
 export default function Home() {
   const currentYear = getCurrentJalaliYear();
   const weeks = useMemo(() => getWeeksOfYear(currentYear), [currentYear]);
 
-  // Default to the first week or current week if logic allows, for now first week
   const [selectedWeek, setSelectedWeek] = useState<string>(weeks[0]?.label || '');
+  const currentWeekObj = weeks.find((w) => w.label === selectedWeek);
 
-  // Derived from selected week
-  const currentWeekObj = weeks.find(w => w.label === selectedWeek);
-
-  // Specific Manual Date State
   const [manualFromDate, setManualFromDate] = useState<string>('');
   const [manualToDate, setManualToDate] = useState<string>('');
-
-  // SubCat filter state
   const [selectedSubCat, setSelectedSubCat] = useState<number>(0);
 
-  // Determine effective dates (Manual overrides Week if both are filled)
   const isManualDateSet = manualFromDate.length === 10 && manualToDate.length === 10;
-
-  const fromDate = isManualDateSet ? manualFromDate : (currentWeekObj?.fromDate || '');
-  const toDate = isManualDateSet ? manualToDate : (currentWeekObj?.toDate || '');
+  const fromDate = isManualDateSet ? manualFromDate : currentWeekObj?.fromDate || '';
+  const toDate = isManualDateSet ? manualToDate : currentWeekObj?.toDate || '';
 
   const [rawData, setRawData] = useState<RawDataItem[]>([]);
   const [aggregatedData, setAggregatedData] = useState<AggregatedData[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters state
   const [selectedTasvieh, setSelectedTasvieh] = useState<string[]>([]);
   const [selectedProducers, setSelectedProducers] = useState<string[]>([]);
   const [selectedPackets, setSelectedPackets] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Available options for filters (derived from fetched data)
-  // Available options for filters (derived from fetched data)
   const [availableTasvieh, setAvailableTasvieh] = useState<string[]>([]);
-  // Producers will now be derived dynamically
-  const [allProducers, setAllProducers] = useState<string[]>([]);
-  const [availablePackets, setAvailablePackets] = useState<string[]>([]); // This will now hold groupNames
+  const [availablePackets, setAvailablePackets] = useState<string[]>([]);
 
-  // Global prices state
-  interface GlobalPrice {
-    id: number;
-    slug: string;
-    globalName: string;
-    localLabel: string;
-    price: number | null;
-  }
   const [globalPrices, setGlobalPrices] = useState<GlobalPrice[]>([]);
+  const [currencyRates, setCurrencyRates] = useState<{ havaleh: number | null; azad: number | null }>({
+    havaleh: null,
+    azad: null,
+  });
 
   const fetchGlobalPrices = async () => {
     try {
       const response = await fetch('/api/global-prices');
       const data = await response.json();
-      if (data.data) {
-        setGlobalPrices(data.data);
-      }
+      if (data.data) setGlobalPrices(data.data);
     } catch (err) {
       console.error('Error fetching global prices:', err);
     }
   };
-  // Fetch global prices on mount
+
   useEffect(() => {
     fetchGlobalPrices();
   }, []);
 
-  // Currency rates state
-  interface CurrencyRatesState {
-    havaleh: number | null;
-    azad: number | null;
-  }
-  const [currencyRates, setCurrencyRates] = useState<CurrencyRatesState>({
-    havaleh: null,
-    azad: null,
-  });
-
-  // Fetch currency rates on mount
   useEffect(() => {
-    const fetchCurrencyRates = async () => {
+    (async () => {
       try {
         const response = await fetch('/api/currency-rates');
         if (response.ok) {
           const result = await response.json();
-          if (result.data) {
-            setCurrencyRates(result.data);
-          }
+          if (result.data) setCurrencyRates(result.data);
         }
       } catch (err) {
         console.error('Error fetching currency rates:', err);
       }
-    };
-    fetchCurrencyRates();
+    })();
   }, []);
 
-  const getCommodityGroup = useCallback((goodsName: string): string => {
-    const keywords = ["ورق گرم", "ورق سرد", "تیرآهن بال پهن", "ورق گالوانیزه", "میلگرد", "تختال", "تیرآهن", "شمش", "کاتد"];
-    for (const keyword of keywords) {
-      if (goodsName.includes(keyword)) {
-        return keyword;
-      }
-    }
-    if (goodsName.includes("ورق")) {
-      return "سایر";
-    }
-    return goodsName.split(/[- ]/)[0] || "سایر";
-  }, []);
-
-  const processData = useCallback((data: RawDataItem[]) => {
-    // Apply filters
-    // Apply filters
-    const filteredData = data.filter(item => {
-      const itemGroupName = getCommodityGroup(item.GoodsName);
-      if (itemGroupName === "سایر") return false;
-      if (selectedTasvieh.length > 0 && !selectedTasvieh.includes(item.Tasvieh)) return false;
-      // Note: Producer filter check should happen; but available options for it depend on Packet filter
-      // However, if we simply filter sequentially, we might have issues.
-      // Let's keep strict filtering here.
-
-      // Filter by Group (mapped to selectedPackets state for backwards compatibility of name)
-      if (selectedPackets.length > 0 && !selectedPackets.includes(itemGroupName)) return false;
-
-      if (selectedProducers.length > 0 && !selectedProducers.includes(item.ProducerName)) return false;
-
-      return true;
-    });
-
-    const groupedData = new Map<string, {
-      totalQuantity: number;
-      totalSupply: number;
-      totalValue: number;
-      totalBasePriceValue: number;
-    }>();
-
-    filteredData.forEach(item => {
-      const groupName = getCommodityGroup(item.GoodsName);
-      const currentGroup = groupedData.get(groupName) || {
-        totalQuantity: 0,
-        totalSupply: 0,
-        totalValue: 0,
-        totalBasePriceValue: 0
-      };
-
-      currentGroup.totalQuantity += item.Quantity;
-      currentGroup.totalSupply += item.arze;
-      currentGroup.totalValue += item.TotalPrice;
-      currentGroup.totalBasePriceValue += (item.ArzeBasePrice * item.Quantity);
-
-      groupedData.set(groupName, currentGroup);
-    });
-
-    const result: AggregatedData[] = Array.from(groupedData.entries()).map(([groupName, totals]) => ({
-      groupName,
-      totalQuantity: totals.totalQuantity,
-      totalSupply: totals.totalSupply,
-      totalValue: totals.totalValue,
-      averagePrice: totals.totalQuantity > 0 ? totals.totalValue / totals.totalQuantity : 0,
-      volumeToSupplyRatio: totals.totalSupply > 0 ? (totals.totalQuantity / totals.totalSupply) * 100 : 0,
-      priceToBasePriceRatio: totals.totalBasePriceValue > 0 ? (totals.totalValue / totals.totalBasePriceValue) * 100 - 100 : 0,
-    }));
-
-    // Sort by total value descending
-    result.sort((a, b) => b.totalValue - a.totalValue);
-
-    setAggregatedData(result);
-  }, [selectedTasvieh, selectedProducers, selectedPackets, getCommodityGroup]);
-
-  // Derive available producers based on selected Packets (Groups)
-  const activeProducers = useMemo(() => {
-    if (rawData.length === 0) return [];
-
-    // If no group selected, show all producers from raw data (or filtered by other means?)
-    // Requirement: "when a packet is selected, producers list should be trimmed to only available ones."
-
-    let relevantData = rawData;
-    if (selectedPackets.length > 0) {
-      relevantData = rawData.filter(item => selectedPackets.includes(getCommodityGroup(item.GoodsName)));
-    }
-
-    const producerSet = new Set<string>();
-    relevantData.forEach(item => {
-      if (item.ProducerName) producerSet.add(item.ProducerName);
-    });
-
-    return Array.from(producerSet).sort();
-  }, [rawData, selectedPackets, getCommodityGroup]);
-
-  // Re-process data when filters change
+  // Re-aggregate whenever data or filters change (shared lib logic).
   useEffect(() => {
     if (rawData.length > 0) {
-      processData(rawData);
+      setAggregatedData(
+        aggregate(rawData, {
+          tasvieh: selectedTasvieh,
+          groups: selectedPackets,
+          producers: selectedProducers,
+        })
+      );
     } else {
       setAggregatedData(null);
     }
-  }, [processData, rawData]);
+  }, [rawData, selectedTasvieh, selectedPackets, selectedProducers]);
 
+  // Producers available given the current group selection.
+  const activeProducers = useMemo(() => {
+    if (rawData.length === 0) return [];
+    let relevant = rawData;
+    if (selectedPackets.length > 0) {
+      relevant = rawData.filter((item) => selectedPackets.includes(getCommodityGroup(item.GoodsName)));
+    }
+    const set = new Set<string>();
+    relevant.forEach((item) => item.ProducerName && set.add(item.ProducerName));
+    return Array.from(set).sort();
+  }, [rawData, selectedPackets]);
 
   const fetchData = async () => {
-
     if (!fromDate || !toDate) return;
     setLoading(true);
     setError(null);
     setAggregatedData(null);
     setRawData([]);
-
     await fetchGlobalPrices();
-
-    // Reset filters on new fetch? Or keep them? 
-    // Usually better to keep them if possible, but options might change.
-    // Let's keep the selected values, but we need to update available options.
 
     try {
       const response = await fetch('/api/fetch-data', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fromDate, toDate, subCat: selectedSubCat }),
       });
 
@@ -237,39 +131,26 @@ export default function Home() {
       }
 
       const jsonResponse = await response.json();
-
       if (jsonResponse.data) {
         const data: RawDataItem[] = jsonResponse.data;
         if (data.length === 0) {
-          setError("داده‌ای برای بازه زمانی انتخابی یافت نشد.");
+          setError('داده‌ای برای بازه زمانی انتخابی یافت نشد.');
         } else {
           setRawData(data);
-
-          // Extract options for filters
           const tasviehSet = new Set<string>();
-          const producerSet = new Set<string>();
           const groupSet = new Set<string>();
-
-          data.forEach(item => {
+          data.forEach((item) => {
             if (item.Tasvieh) tasviehSet.add(item.Tasvieh);
-            if (item.ProducerName) producerSet.add(item.ProducerName);
-            // Use getCommodityGroup for the "Packet" filter options
             const gName = getCommodityGroup(item.GoodsName);
-            if (gName) groupSet.add(gName);
+            if (gName && gName !== 'سایر') groupSet.add(gName);
           });
-
           setAvailableTasvieh(Array.from(tasviehSet).sort());
-          setAllProducers(Array.from(producerSet).sort()); // Store all, use activeProducers for UI
           setAvailablePackets(Array.from(groupSet).sort());
-
-          // Reset selections on new fetch properly if needed, or keep valid ones
-          // For now, let's clear them to avoid confusion with new data
           setSelectedProducers([]);
-          setSelectedPackets([]); // Clear group selection
-
+          setSelectedPackets([]);
         }
       } else {
-        throw new Error("فرمت پاسخ دریافت شده نامعتبر است.");
+        throw new Error('فرمت پاسخ دریافت شده نامعتبر است.');
       }
     } catch (err) {
       console.error(err);
@@ -281,9 +162,7 @@ export default function Home() {
 
   const exportToExcel = () => {
     if (!aggregatedData || aggregatedData.length === 0) return;
-
-    // Prepare data for export
-    const exportData = aggregatedData.map(item => ({
+    const exportData = aggregatedData.map((item) => ({
       'گروه کالا': item.groupName,
       'حجم قرارداد (تن)': item.totalQuantity,
       'حجم عرضه (تن)': item.totalSupply,
@@ -292,254 +171,235 @@ export default function Home() {
       'نسبت حجم معاملات به حجم عرضه (%)': Number(item.volumeToSupplyRatio.toFixed(2)),
       'نسبت فی معامله به فی پایه (%)': Number(item.priceToBasePriceRatio.toFixed(2)),
     }));
-
-    // Create worksheet
     const ws = XLSX.utils.json_to_sheet(exportData);
-
-    // Create workbook
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'داده‌های معاملات');
-
-    // Generate filename with selected week
-    const filename = `گزارش-معاملات-${selectedWeek}.xlsx`;
-
-    // Save file
-    XLSX.writeFile(wb, filename);
+    XLSX.writeFile(wb, `گزارش-معاملات-${selectedWeek}.xlsx`);
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-800/80 backdrop-blur-sm p-3 border border-slate-600 rounded-lg shadow-lg text-sm">
-          <p className="label font-bold text-sky-400">{`${label}`}</p>
-          <p className="intro text-slate-300">{`ارزش معامله: ${payload[0].value.toLocaleString('fa-IR')} ریال`}</p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const filteredTable = aggregatedData?.filter(
+    (item) => searchTerm === '' || item.groupName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // KPI figures for the hero strip.
+  const totalValue = aggregatedData?.reduce((s, i) => s + i.totalValue, 0) ?? 0;
+  const topMover = aggregatedData && aggregatedData.length > 0 ? aggregatedData[0] : null;
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" dir="rtl">
-      <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-sky-400">تحلیلگر داده‌های بورس کالا</h1>
-          <p className="mt-2 text-slate-400">آخرین آمار معاملات فلزات گران‌بها را مشاهده و تحلیل کنید</p>
-        </header>
+    <main className="mx-auto max-w-page px-4 py-10 sm:px-6 lg:px-8">
+      {/* Hero */}
+      <header className="mb-10 max-w-3xl animate-fade-up">
+        <span className="tag">بورس کالای ایران · فلزات</span>
+        <h1 className="mt-3 font-display text-heading leading-tight text-ink sm:text-heading-lg">
+          آمار معاملات فلزات را <span className="italic">شفاف</span> تحلیل کنید
+        </h1>
+        <p className="mt-4 text-body text-slate">
+          قیمت‌های جهانی، نرخ دلار و شکاف قیمت با پارتیه جهانی را کنار آمار هفتگی بورس کالا ببینید.
+        </p>
+      </header>
 
-        {/* Currency Rates Section */}
+      {/* Currency stat cards */}
+      <section className="mb-8">
         <CurrencyRates />
+      </section>
 
-        {/* Global Prices Section */}
+      {/* Global prices */}
+      <section className="mb-8">
         <GlobalPrices />
+      </section>
 
-        <main>
-          <div className="bg-slate-800 p-6 rounded-lg shadow-xl mb-8">
-            <div className="flex flex-col gap-4">
-              {/* Week Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div className="md:col-span-2">
-                  <label htmlFor="weekSelect" className="block mb-2 text-sm font-medium text-slate-400">انتخاب هفته</label>
-                  <select
-                    id="weekSelect"
-                    value={selectedWeek}
-                    onChange={(e) => {
-                      const newWeek = e.target.value;
-                      setSelectedWeek(newWeek);
-                      const weekObj = weeks.find(w => w.label === newWeek);
-                      if (weekObj) {
-                        setManualFromDate(weekObj.fromDate);
-                        setManualToDate(weekObj.toDate);
-                      }
-                    }}
-                    disabled={false}
-                    className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-                  >
-                    {weeks.map((week) => (
-                      <option key={week.label} value={week.label}>
-                        {week.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {/* Manual Date Selection */}
-                <div className="md:col-span-3">
-                  <div className="text-xs text-slate-500 mb-2">یا انتخاب بازه زمانی دستی (تایپ کنید: 1402/01/01)</div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="از تاریخ (1403/xx/xx)"
-                        value={manualFromDate}
-                        onChange={(e) => setManualFromDate(e.target.value)}
-                        className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="تا تاریخ (1403/xx/xx)"
-                        value={manualToDate}
-                        onChange={(e) => setManualToDate(e.target.value)}
-                        className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="md:col-span-1">
-                  <button
-                    onClick={fetchData}
-                    disabled={loading || (!selectedWeek && !isManualDateSet)}
-                    className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-sky-800 disabled:cursor-not-allowed text-white font-bold py-2.5 px-6 rounded-lg transition duration-300 flex items-center justify-center"
-                  >
-                    {loading ? 'در حال دریافت...' : 'دریافت داده‌ها'}
-                  </button>
-                </div>
-                {/* SubCat Filter */}
-                <div className="md:col-span-2">
-                  <label htmlFor="subCatSelect" className="block mb-2 text-sm font-medium text-slate-400">زیرگروه کالا</label>
-                  <select
-                    id="subCatSelect"
-                    value={selectedSubCat}
-                    onChange={(e) => setSelectedSubCat(Number(e.target.value))}
-                    className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-                  >
-                    <option value="0">[همه زیرگروهها]</option>
-                    <option value="1">بلوم و بیلت فولادی</option>
-                    <option value="2">تیرآهن متوسط</option>
-                    <option value="3">تیرآهن نیمه سنگین</option>
-                    <option value="4">تیرآهن سنگین</option>
-                    <option value="6">میلگرد متوسط</option>
-                    <option value="7">میلگرد سنگین</option>
-                    <option value="8">سبد مخلوط</option>
-                    <option value="9">ورق گرم</option>
-                    <option value="10">ورق سرد</option>
-                    <option value="17">ورق گالوانیزه</option>
-                    <option value="19">سبد تیرآهن مخلوط</option>
-                    <option value="20">سبد میلگرد و تیرآهن</option>
-                    <option value="21">میلگرد سبک</option>
-                    <option value="22">ورق قلع اندود</option>
-                    <option value="24">قراضه فولادی</option>
-                    <option value="64">میلگرد فوق سنگین (صنعتی)</option>
-                    <option value="77">سبد مخلوط</option>
-                    <option value="78">ناودانی</option>
-                    <option value="99">نبشی</option>
-                    <option value="147">سیم فولادی</option>
-                    <option value="148">سبد ورق گرم</option>
-                    <option value="150">شمش فولادی</option>
-                    <option value="152">تختال</option>
-                    <option value="168">تیرآهن سبک</option>
-                    <option value="410">سبد تیرآهن و ناودانی</option>
-                    <option value="411">سبد نبشی و ناودانی</option>
-                    <option value="419">سبد میلگرد و نبشی</option>
-                    <option value="427">سبد ناودانی</option>
-                    <option value="466">لوله</option>
-                    <option value="467">پروفیل</option>
-                    <option value="478">سبد میلگرد مخلوط</option>
-                    <option value="1495">سبد نبشی</option>
-                    <option value="1499">ریل</option>
-                    <option value="1503">ورق گرم HB</option>
-                    <option value="1504">ورق گرم HC</option>
-                    <option value="2508">سبد ریل آهن مخلوط</option>
-                    <option value="2512">ورق سرد لوازم خانگی</option>
-                    <option value="2513">ورق سرد خودرو</option>
-                    <option value="2517">ورق رنگی</option>
-                    <option value="2520">ورق گرم خودرو</option>
-                    <option value="2521">ورق گالوانیزه خودرو</option>
-                    <option value="2522">ورق گالوانیزه لوازم خانگی</option>
-                    <option value="2546">تیرآهن صنعتی</option>
-                    <option value="2580">ورق گرم نوردکاران</option>
-                    <option value="2659">فرو سیلیس</option>
-                    <option value="2681">بلوم و بیلت آلیاژی</option>
-                    <option value="2682">میلگرد فولاد آلیاژی</option>
-                  </select>
-                </div>
+      {/* Controls */}
+      <section className="card mb-8 p-6 sm:p-8">
+        <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-6">
+          <div className="md:col-span-2">
+            <label htmlFor="weekSelect" className="mb-2 block text-[13px] text-slate">
+              انتخاب هفته
+            </label>
+            <select
+              id="weekSelect"
+              value={selectedWeek}
+              onChange={(e) => {
+                const newWeek = e.target.value;
+                setSelectedWeek(newWeek);
+                const weekObj = weeks.find((w) => w.label === newWeek);
+                if (weekObj) {
+                  setManualFromDate(weekObj.fromDate);
+                  setManualToDate(weekObj.toDate);
+                }
+              }}
+              className="field !py-3"
+            >
+              {weeks.map((week) => (
+                <option key={week.label} value={week.label}>
+                  {week.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-3">
+            <div className="mb-2 text-[12px] text-smoke">یا بازه زمانی دستی (مثال: ۱۴۰۳/۰۱/۰۱)</div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="از تاریخ"
+                value={manualFromDate}
+                onChange={(e) => setManualFromDate(e.target.value)}
+                className="field !py-3"
+              />
+              <input
+                type="text"
+                placeholder="تا تاریخ"
+                value={manualToDate}
+                onChange={(e) => setManualToDate(e.target.value)}
+                className="field !py-3"
+              />
+            </div>
+          </div>
+
+          <div className="md:col-span-1">
+            <button
+              onClick={fetchData}
+              disabled={loading || (!selectedWeek && !isManualDateSet)}
+              className="pill h-12 w-full"
+            >
+              {loading ? 'در حال دریافت…' : 'دریافت داده‌ها'}
+            </button>
+          </div>
+
+          <div className="md:col-span-2">
+            <label htmlFor="subCatSelect" className="mb-2 block text-[13px] text-slate">
+              زیرگروه کالا
+            </label>
+            <select
+              id="subCatSelect"
+              value={selectedSubCat}
+              onChange={(e) => setSelectedSubCat(Number(e.target.value))}
+              className="field !py-3"
+            >
+              <option value="0">[همه زیرگروه‌ها]</option>
+              <option value="1">بلوم و بیلت فولادی</option>
+              <option value="2">تیرآهن متوسط</option>
+              <option value="3">تیرآهن نیمه سنگین</option>
+              <option value="4">تیرآهن سنگین</option>
+              <option value="6">میلگرد متوسط</option>
+              <option value="7">میلگرد سنگین</option>
+              <option value="8">سبد مخلوط</option>
+              <option value="9">ورق گرم</option>
+              <option value="10">ورق سرد</option>
+              <option value="17">ورق گالوانیزه</option>
+              <option value="19">سبد تیرآهن مخلوط</option>
+              <option value="20">سبد میلگرد و تیرآهن</option>
+              <option value="21">میلگرد سبک</option>
+              <option value="22">ورق قلع اندود</option>
+              <option value="24">قراضه فولادی</option>
+              <option value="64">میلگرد فوق سنگین (صنعتی)</option>
+              <option value="77">سبد مخلوط</option>
+              <option value="78">ناودانی</option>
+              <option value="99">نبشی</option>
+              <option value="147">سیم فولادی</option>
+              <option value="148">سبد ورق گرم</option>
+              <option value="150">شمش فولادی</option>
+              <option value="152">تختال</option>
+              <option value="168">تیرآهن سبک</option>
+              <option value="410">سبد تیرآهن و ناودانی</option>
+              <option value="411">سبد نبشی و ناودانی</option>
+              <option value="419">سبد میلگرد و نبشی</option>
+              <option value="427">سبد ناودانی</option>
+              <option value="466">لوله</option>
+              <option value="467">پروفیل</option>
+              <option value="478">سبد میلگرد مخلوط</option>
+              <option value="1495">سبد نبشی</option>
+              <option value="1499">ریل</option>
+              <option value="1503">ورق گرم HB</option>
+              <option value="1504">ورق گرم HC</option>
+              <option value="2508">سبد ریل آهن مخلوط</option>
+              <option value="2512">ورق سرد لوازم خانگی</option>
+              <option value="2513">ورق سرد خودرو</option>
+              <option value="2517">ورق رنگی</option>
+              <option value="2520">ورق گرم خودرو</option>
+              <option value="2521">ورق گالوانیزه خودرو</option>
+              <option value="2522">ورق گالوانیزه لوازم خانگی</option>
+              <option value="2546">تیرآهن صنعتی</option>
+              <option value="2580">ورق گرم نوردکاران</option>
+              <option value="2659">فرو سیلیس</option>
+              <option value="2681">بلوم و بیلت آلیاژی</option>
+              <option value="2682">میلگرد فولاد آلیاژی</option>
+            </select>
+          </div>
+        </div>
+
+        {rawData.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 gap-4 border-t border-hairline pt-6 md:grid-cols-3">
+            <MultiSelect label="نوع تسویه" options={availableTasvieh} selected={selectedTasvieh} onChange={setSelectedTasvieh} placeholder="همه موارد" />
+            <MultiSelect label="گروه کالا" options={availablePackets} selected={selectedPackets} onChange={setSelectedPackets} placeholder="همه موارد" />
+            <MultiSelect label="تولید کننده" options={activeProducers} selected={selectedProducers} onChange={setSelectedProducers} placeholder="همه موارد" />
+          </div>
+        )}
+      </section>
+
+      {/* Results */}
+      <div className="space-y-8">
+        {loading && <Spinner />}
+        {error && (
+          <div className="accent-card px-6 py-4 text-center text-sienna" role="alert">
+            {error}
+          </div>
+        )}
+        {!loading && !error && !aggregatedData && rawData.length === 0 && (
+          <div className="card py-20 text-center text-slate">
+            برای شروع، هفته مورد نظر را انتخاب کرده و روی «دریافت داده‌ها» بزنید.
+          </div>
+        )}
+
+        {aggregatedData && (
+          <>
+            {/* KPI strip */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="artifact p-5">
+                <span className="tag">ارزش کل معاملات (ریال)</span>
+                <p className="mt-1 font-display text-heading-sm tabular text-ink">{Math.round(totalValue).toLocaleString('fa-IR')}</p>
+              </div>
+              <div className="artifact p-5">
+                <span className="tag">تعداد گروه‌ها</span>
+                <p className="mt-1 font-display text-heading-sm tabular text-ink">{aggregatedData.length.toLocaleString('fa-IR')}</p>
+              </div>
+              <div className="artifact p-5">
+                <span className="tag">بیشترین ارزش معامله</span>
+                <p className="mt-1 font-display text-heading-sm text-ink">{topMover?.groupName ?? '—'}</p>
               </div>
             </div>
 
-            {/* Filters Section */}
-            {rawData.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <MultiSelect
-                  label="نوع تسویه"
-                  options={availableTasvieh}
-                  selected={selectedTasvieh}
-                  onChange={setSelectedTasvieh}
-                  placeholder="همه موارد"
-                />
-                <MultiSelect
-                  label="گروه کالا"
-                  options={availablePackets} // These are now groupNames
-                  selected={selectedPackets}
-                  onChange={setSelectedPackets}
-                  placeholder="همه موارد"
-                />
-                <MultiSelect
-                  label="تولید کننده"
-                  options={activeProducers} // Use dynamic active list
-                  selected={selectedProducers}
-                  onChange={setSelectedProducers}
-                  placeholder="همه موارد"
-                />
-
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-8">
-            {loading && <Spinner />}
-            {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg text-center" role="alert">{error}</div>}
-            {!loading && !error && !aggregatedData && rawData.length === 0 && (
-              <div className="text-center text-slate-500 py-16">
-                <p>برای شروع، هفته مورد نظر را انتخاب کرده و روی دکمه "دریافت داده‌ها" کلیک کنید.</p>
-              </div>
-            )}
-            {aggregatedData && (
-              <>
-
-
-                <div>
-                  <div className="flex justify-between items-center mb-4 gap-4">
-                    <h2 className="text-2xl font-semibold text-slate-300">جدول خلاصه معاملات</h2>
-                    <div className="flex gap-3 items-center">
-                      <button
-                        onClick={exportToExcel}
-                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-5 rounded-lg transition duration-300 flex items-center gap-2 whitespace-nowrap"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        خروجی اکسل
-                      </button>
-                      <div className="w-64">
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="جستجو در نام کالا..."
-                          className="bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2.5"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <DataTable
-                    data={aggregatedData.filter(item =>
-                      searchTerm === '' || item.groupName.toLowerCase().includes(searchTerm.toLowerCase())
-                    )}
-                    globalPrices={globalPrices}
-                    currencyRates={currencyRates}
+            <div>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                <h2 className="font-display text-heading-sm text-ink">جدول خلاصه معاملات</h2>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="جستجو در نام کالا…"
+                    className="field !w-56 !py-2.5 text-[14px]"
                   />
+                  <button onClick={exportToExcel} className="pill-ghost whitespace-nowrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    خروجی اکسل
+                  </button>
                 </div>
+              </div>
+              <DataTable data={filteredTable ?? []} globalPrices={globalPrices} currencyRates={currencyRates} />
+            </div>
 
-                {/* Pair Comparison Section */}
-                <div className="mb-8">
-                  <PairComparison data={aggregatedData} />
-                </div>
-              </>
-            )}
-          </div>
-        </main>
+            {/* Next-level tool: premium vs global parity */}
+            <PremiumTracker data={aggregatedData} globalPrices={globalPrices} currencyRates={currencyRates} />
+
+            {/* Pair comparison */}
+            <PairComparison data={aggregatedData} />
+          </>
+        )}
       </div>
-    </div>
+    </main>
   );
 }
