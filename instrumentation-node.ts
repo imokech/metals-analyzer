@@ -14,9 +14,10 @@ export async function start() {
 
     const cron = (await import("node-cron")).default;
     const { captureSnapshot, backfillWeeks, hasAnyImeSnapshot } = await import("@/lib/snapshots");
+    const { config } = await import("@/lib/config");
 
-    // Daily at 06:00 server time.
-    cron.schedule("0 6 * * *", async () => {
+    // Default: daily at 06:00 server time (override with SNAPSHOT_CRON).
+    cron.schedule(config.snapshotCron, async () => {
         console.log("[cron] capturing daily market snapshot…");
         try {
             await captureSnapshot();
@@ -31,7 +32,7 @@ export async function start() {
         try {
             if (!(await hasAnyImeSnapshot())) {
                 console.log("[cron] no history found — backfilling recent weeks…");
-                const inserted = await backfillWeeks(12);
+                const inserted = await backfillWeeks(config.backfillWeeks);
                 console.log(`[cron] backfill inserted ${inserted} rows`);
             }
         } catch (err) {

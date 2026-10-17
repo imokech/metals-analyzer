@@ -6,6 +6,7 @@ import {
     imeTradeSnapshots,
 } from "@/db/schema";
 import { asc } from "drizzle-orm";
+import { config } from "@/lib/config";
 import { captureSnapshot, backfillWeeks, hasAnyImeSnapshot } from "@/lib/snapshots";
 
 /**
@@ -57,7 +58,7 @@ export async function POST() {
     try {
         let backfilled = 0;
         if (!(await hasAnyImeSnapshot())) {
-            backfilled = await backfillWeeks(12);
+            backfilled = await backfillWeeks(config.backfillWeeks);
         }
         await captureSnapshot();
 

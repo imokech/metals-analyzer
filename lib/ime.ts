@@ -1,8 +1,5 @@
 import type { RawDataItem } from "@/types";
-
-const ORIGIN_URL =
-    "https://www.ime.co.ir/subsystems/ime/services/home/imedata.asmx/GetAmareMoamelatList";
-const PROXY_URL = "https://dastyar-prx11.darkube.ir/proxy";
+import { config } from "@/lib/config";
 
 /**
  * Fetches raw IME (Iran Mercantile Exchange) trade rows for a date range.
@@ -25,10 +22,10 @@ export async function fetchImeTradeData(
         Producer: 0,
     };
 
-    const response = await fetch(PROXY_URL, {
+    const response = await fetch(config.proxyUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: ORIGIN_URL, data: payload }),
+        body: JSON.stringify({ url: config.imeApiUrl, data: payload }),
     });
 
     if (!response.ok) {

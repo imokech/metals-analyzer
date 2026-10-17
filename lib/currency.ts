@@ -1,4 +1,4 @@
-const PROXY_URL = "https://dastyar-prx11.darkube.ir/proxy";
+import { config } from "@/lib/config";
 
 interface IceApiCurrency {
     id: number;
@@ -21,7 +21,7 @@ export interface CurrencyRates {
 }
 
 function proxyGet(url: string) {
-    return fetch(PROXY_URL + "?url=" + encodeURIComponent(url));
+    return fetch(config.proxyUrl + "?url=" + encodeURIComponent(url));
 }
 
 /**
@@ -34,9 +34,7 @@ export async function fetchCurrencyRates(): Promise<CurrencyRates> {
 
     // تالار اول (havaleh) — market 2 on ice.ir
     try {
-        const res = await proxyGet(
-            "https://api.ice.ir/api/v1/markets/2/currencies/history/latest/?lang=fa"
-        );
+        const res = await proxyGet(config.iceApiUrl);
         if (res.ok) {
             const data: IceApiCurrency[] = await res.json();
             const usd = data.find((item) => item.slug === "USD");
@@ -48,7 +46,7 @@ export async function fetchCurrencyRates(): Promise<CurrencyRates> {
 
     // بازار آزاد (azad) — dastyar returns Toman, convert to Rial
     try {
-        const res = await proxyGet("https://api.dastyar.io/express/financial-item");
+        const res = await proxyGet(config.dastyarApiUrl);
         if (res.ok) {
             const data: DastyarApiItem[] = await res.json();
             const usd = data.find((item) => item.key === "usd");
