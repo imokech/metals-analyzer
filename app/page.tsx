@@ -166,10 +166,12 @@ export default function Home() {
       'گروه کالا': item.groupName,
       'حجم قرارداد (تن)': item.totalQuantity,
       'حجم عرضه (تن)': item.totalSupply,
-      'ارزش معامله (ریال)': item.totalValue,
+      'قیمت پایه (ریال/تن)': Math.round(item.averageBasePrice),
       'میانگین قیمت (ریال/تن)': Math.round(item.averagePrice),
       'نسبت حجم معاملات به حجم عرضه (%)': Number(item.volumeToSupplyRatio.toFixed(2)),
       'نسبت فی معامله به فی پایه (%)': Number(item.priceToBasePriceRatio.toFixed(2)),
+      'درصد معامله نقدی (%)': Number(item.cashPercent.toFixed(2)),
+      'درصد معامله اعتباری (%)': Number(item.creditPercent.toFixed(2)),
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();

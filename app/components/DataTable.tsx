@@ -54,7 +54,7 @@ const DataTable: React.FC<DataTableProps> = ({
     "گروه کالا",
     "حجم قرارداد (تن)",
     "حجم عرضه (تن)",
-    "ارزش معامله (ریال)",
+    "قیمت پایه (ریال/تن)",
     "میانگین قیمت (ریال/تن)",
     "قیمت جهانی (USD/mt)",
     "کف برآورد",
@@ -62,6 +62,8 @@ const DataTable: React.FC<DataTableProps> = ({
     "قیمت دلاری کالا",
     "حجم/عرضه (٪)",
     "فی معامله/پایه (٪)",
+    "درصد معامله نقدی (٪)",
+    "درصد معامله اعتباری (٪)",
   ];
 
   const globalPriceMap = new Map<string, number | null>();
@@ -144,7 +146,7 @@ const DataTable: React.FC<DataTableProps> = ({
                   </th>
                   <td className="px-5 py-4 tabular text-slate">{item.totalQuantity.toLocaleString("fa-IR")}</td>
                   <td className="px-5 py-4 tabular text-slate">{item.totalSupply.toLocaleString("fa-IR")}</td>
-                  <td className="px-5 py-4 tabular text-ink">{item.totalValue.toLocaleString("fa-IR")}</td>
+                  <td className="px-5 py-4 tabular text-slate">{Math.round(item.averageBasePrice).toLocaleString("fa-IR")}</td>
                   <td className="px-5 py-4">
                     {priceMode === "manual" ? (
                       <input
@@ -206,6 +208,12 @@ const DataTable: React.FC<DataTableProps> = ({
                   </td>
                   <td className="px-5 py-4 tabular text-slate">
                     {item.priceToBasePriceRatio.toLocaleString("fa-IR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪
+                  </td>
+                  <td className="px-5 py-4 tabular text-slate">
+                    {item.cashPercent.toLocaleString("fa-IR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪
+                  </td>
+                  <td className="px-5 py-4 tabular text-slate">
+                    {item.creditPercent.toLocaleString("fa-IR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪
                   </td>
                 </tr>
               );

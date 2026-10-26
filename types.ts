@@ -42,6 +42,12 @@ export interface AggregatedData {
   totalSupply: number;
   totalValue: number;
   averagePrice: number;
+  /** Traded-quantity-weighted average of ArzeBasePrice; same unit as averagePrice. */
+  averageBasePrice: number;
   volumeToSupplyRatio: number;
   priceToBasePriceRatio: number;
+  /** Share (0-100) of the group's traded quantity settled in cash (Tasvieh "نقد…"). */
+  cashPercent: number;
+  /** Share (0-100) of the group's traded quantity settled on credit (Tasvieh "اعتبار…"). */
+  creditPercent: number;
 }
