@@ -7,7 +7,7 @@ import Spinner from './components/Spinner';
 import MultiSelect from './components/MultiSelect';
 import PairComparison from './components/PairComparison';
 import CurrencyRates from './components/CurrencyRates';
-import GlobalPrices from './components/GlobalPrices';
+// import GlobalPrices from './components/GlobalPrices';
 import PremiumTracker from './components/charts/PremiumTracker';
 import { getWeeksOfYear, getCurrentJalaliYear } from './utils/dateUtils';
 import { aggregate, getCommodityGroup } from '@/lib/aggregate';
@@ -49,25 +49,25 @@ export default function Home() {
   const [availableTasvieh, setAvailableTasvieh] = useState<string[]>([]);
   const [availablePackets, setAvailablePackets] = useState<string[]>([]);
 
-  const [globalPrices, setGlobalPrices] = useState<GlobalPrice[]>([]);
+  const [globalPrices, _setGlobalPrices] = useState<GlobalPrice[]>([]);
   const [currencyRates, setCurrencyRates] = useState<{ havaleh: number | null; azad: number | null }>({
     havaleh: null,
     azad: null,
   });
 
-  const fetchGlobalPrices = async () => {
-    try {
-      const response = await fetch('/api/global-prices');
-      const data = await response.json();
-      if (data.data) setGlobalPrices(data.data);
-    } catch (err) {
-      console.error('Error fetching global prices:', err);
-    }
-  };
+  // const fetchGlobalPrices = async () => {
+  //   try {
+  //     const response = await fetch('/api/global-prices');
+  //     const data = await response.json();
+  //     if (data.data) setGlobalPrices(data.data);
+  //   } catch (err) {
+  //     console.error('Error fetching global prices:', err);
+  //   }
+  // };
 
-  useEffect(() => {
-    fetchGlobalPrices();
-  }, []);
+  // useEffect(() => {
+  //   fetchGlobalPrices();
+  // }, []);
 
   useEffect(() => {
     (async () => {
@@ -116,7 +116,7 @@ export default function Home() {
     setError(null);
     setAggregatedData(null);
     setRawData([]);
-    await fetchGlobalPrices();
+    // await fetchGlobalPrices();
 
     try {
       const response = await fetch('/api/fetch-data', {
@@ -164,8 +164,8 @@ export default function Home() {
     if (!aggregatedData || aggregatedData.length === 0) return;
     const exportData = aggregatedData.map((item) => ({
       'گروه کالا': item.groupName,
-      'حجم قرارداد (تن)': item.totalQuantity,
       'حجم عرضه (تن)': item.totalSupply,
+      'حجم قرارداد (تن)': item.totalQuantity,
       'قیمت پایه (ریال/تن)': Math.round(item.averageBasePrice),
       'میانگین قیمت (ریال/تن)': Math.round(item.averagePrice),
       'نسبت حجم معاملات به حجم عرضه (%)': Number(item.volumeToSupplyRatio.toFixed(2)),
@@ -206,9 +206,9 @@ export default function Home() {
       </section>
 
       {/* Global prices */}
-      <section className="mb-8">
+      {/* <section className="mb-8">
         <GlobalPrices />
-      </section>
+      </section> */}
 
       {/* Controls */}
       <section className="card mb-8 p-6 sm:p-8">

@@ -52,15 +52,15 @@ const DataTable: React.FC<DataTableProps> = ({
 
   const tableHeaders = [
     "گروه کالا",
-    "حجم قرارداد (تن)",
     "حجم عرضه (تن)",
+    "حجم قرارداد (تن)",
     "قیمت پایه (ریال/تن)",
     "میانگین قیمت (ریال/تن)",
-    "قیمت جهانی (USD/mt)",
-    "کف برآورد",
-    "سقف برآورد",
-    "قیمت دلاری کالا",
-    "حجم/عرضه (٪)",
+    // "قیمت جهانی (USD/mt)",
+    // "کف برآورد",
+    // "سقف برآورد",
+    // "قیمت دلاری کالا",
+    "نسبت حجم معامله به عرضه (٪)",
     "فی معامله/پایه (٪)",
     "درصد معامله نقدی (٪)",
     "درصد معامله اعتباری (٪)",
@@ -134,10 +134,10 @@ const DataTable: React.FC<DataTableProps> = ({
           </thead>
           <tbody className="divide-y divide-hairline">
             {data.map((item) => {
-              const globalPrice = globalPriceMap.get(item.groupName) ?? null;
-              const effectivePrice = getEffectivePrice(item.groupName, item.averagePrice);
-              const dollarPrice = calculateDollarPrice(effectivePrice, globalPrice);
-              const estimatedPrice = calculateEstimatedPrice(item.groupName, globalPrice);
+              // const globalPrice = globalPriceMap.get(item.groupName) ?? null;
+              // const effectivePrice = getEffectivePrice(item.groupName, item.averagePrice);
+              // const dollarPrice = calculateDollarPrice(effectivePrice, globalPrice);
+              // const estimatedPrice = calculateEstimatedPrice(item.groupName, globalPrice);
 
               return (
                 <tr key={item.groupName} className="transition-colors hover:bg-fog">
@@ -169,7 +169,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       <span className="tabular text-ink">{Math.round(item.averagePrice).toLocaleString("fa-IR")}</span>
                     )}
                   </td>
-                  <td className="px-5 py-4">
+                  {/* <td className="px-5 py-4">
                     {globalPrice !== null ? (
                       <span className="tabular text-ink">
                         {globalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -193,8 +193,8 @@ const DataTable: React.FC<DataTableProps> = ({
                     ) : (
                       <span className="text-smoke">—</span>
                     )}
-                  </td>
-                  <td className="px-5 py-4">
+                  </td> */}
+                  {/* <td className="px-5 py-4">
                     {dollarPrice !== null ? (
                       <span className="tabular font-medium text-sienna">
                         {dollarPrice.toLocaleString("fa-IR", { maximumFractionDigits: 0 })}
@@ -202,7 +202,7 @@ const DataTable: React.FC<DataTableProps> = ({
                     ) : (
                       <span className="text-smoke">—</span>
                     )}
-                  </td>
+                  </td> */}
                   <td className="px-5 py-4 tabular text-slate">
                     {item.volumeToSupplyRatio.toLocaleString("fa-IR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪
                   </td>
