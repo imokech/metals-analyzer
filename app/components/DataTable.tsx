@@ -58,7 +58,7 @@ const DataTable: React.FC<DataTableProps> = ({
     "میانگین قیمت (ریال/تن)",
     // "قیمت جهانی (USD/mt)",
     // "کف برآورد",
-    // "سقف برآورد",
+    "قیمت براساس جهانی",
     // "قیمت دلاری کالا",
     "نسبت حجم معامله به عرضه (٪)",
     "فی معامله/پایه (٪)",
@@ -134,10 +134,10 @@ const DataTable: React.FC<DataTableProps> = ({
           </thead>
           <tbody className="divide-y divide-hairline">
             {data.map((item) => {
-              // const globalPrice = globalPriceMap.get(item.groupName) ?? null;
+              const globalPrice = globalPriceMap.get(item.groupName) ?? null;
               // const effectivePrice = getEffectivePrice(item.groupName, item.averagePrice);
               // const dollarPrice = calculateDollarPrice(effectivePrice, globalPrice);
-              // const estimatedPrice = calculateEstimatedPrice(item.groupName, globalPrice);
+              const estimatedPrice = calculateEstimatedPrice(item.groupName, globalPrice);
 
               return (
                 <tr key={item.groupName} className="transition-colors hover:bg-fog">
@@ -186,14 +186,14 @@ const DataTable: React.FC<DataTableProps> = ({
                     ) : (
                       <span className="text-smoke">—</span>
                     )}
-                  </td>
+                  </td>*/}
                   <td className="px-5 py-4">
                     {estimatedPrice !== null ? (
                       <span className="tabular text-ink">{Math.round(estimatedPrice).toLocaleString("fa-IR")}</span>
                     ) : (
                       <span className="text-smoke">—</span>
                     )}
-                  </td> */}
+                  </td> 
                   {/* <td className="px-5 py-4">
                     {dollarPrice !== null ? (
                       <span className="tabular font-medium text-sienna">
