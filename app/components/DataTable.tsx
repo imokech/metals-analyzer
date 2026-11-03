@@ -144,8 +144,8 @@ const DataTable: React.FC<DataTableProps> = ({
                   <th scope="row" className="whitespace-nowrap px-5 py-4 text-right font-medium text-ink">
                     {item.groupName}
                   </th>
-                  <td className="px-5 py-4 tabular text-slate">{item.totalQuantity.toLocaleString("fa-IR")}</td>
                   <td className="px-5 py-4 tabular text-slate">{item.totalSupply.toLocaleString("fa-IR")}</td>
+                  <td className="px-5 py-4 tabular text-slate">{item.totalQuantity.toLocaleString("fa-IR")}</td>
                   <td className="px-5 py-4 tabular text-slate">{Math.round(item.averageBasePrice).toLocaleString("fa-IR")}</td>
                   <td className="px-5 py-4">
                     {priceMode === "manual" ? (
