@@ -58,7 +58,7 @@ const DataTable: React.FC<DataTableProps> = ({
     "میانگین قیمت (ریال/تن)",
     // "قیمت جهانی (USD/mt)",
     // "کف برآورد",
-    "قیمت براساس جهانی",
+    // "قیمت براساس جهانی",
     // "قیمت دلاری کالا",
     "نسبت حجم معامله به عرضه (٪)",
     "فی معامله/پایه (٪)",
@@ -187,13 +187,13 @@ const DataTable: React.FC<DataTableProps> = ({
                       <span className="text-smoke">—</span>
                     )}
                   </td>*/}
-                  <td className="px-5 py-4">
+                  {/*<td className="px-5 py-4">
                     {estimatedPrice !== null ? (
                       <span className="tabular text-ink">{Math.round(estimatedPrice).toLocaleString("fa-IR")}</span>
                     ) : (
                       <span className="text-smoke">—</span>
                     )}
-                  </td> 
+                  </td>*/}
                   {/* <td className="px-5 py-4">
                     {dollarPrice !== null ? (
                       <span className="tabular font-medium text-sienna">
