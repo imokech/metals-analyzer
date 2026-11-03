@@ -9,7 +9,8 @@ import { config } from "@/lib/config";
 export async function fetchImeTradeData(
     fromDate: string,
     toDate: string,
-    subCat: number = 0
+    subCat: number = 0,
+    cat: number = 1 // 1 = فولاد, 49 = سنگ آهن, 97 = آهن اسفنجی
 ): Promise<RawDataItem[]> {
     const payload = {
         Language: 8,
@@ -17,7 +18,7 @@ export async function fetchImeTradeData(
         GregorianFromDate: fromDate,
         GregorianToDate: toDate,
         MainCat: 1, // Metals and Minerals
-        Cat: 1, // Steel
+        Cat: cat,
         SubCat: subCat,
         Producer: 0,
     };

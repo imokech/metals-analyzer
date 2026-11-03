@@ -10,8 +10,16 @@ import CurrencyRates from './components/CurrencyRates';
 // import GlobalPrices from './components/GlobalPrices';
 import PremiumTracker from './components/charts/PremiumTracker';
 import { getWeeksOfYear, getCurrentJalaliYear } from './utils/dateUtils';
-import { aggregate, getCommodityGroup } from '@/lib/aggregate';
+import { aggregate, filterRawData, getCommodityGroup } from '@/lib/aggregate';
+import RawTradesChart from './components/charts/RawTradesChart';
 import * as XLSX from 'xlsx';
+
+const STEEL_CAT = 1;
+const CATEGORIES = [
+  { code: 1, name: 'فولاد' },
+  { code: 49, name: 'سنگ آهن' },
+  { code: 97, name: 'آهن اسفنجی' },
+];
 
 interface GlobalPrice {
   id: number;
@@ -54,6 +62,16 @@ export default function Home() {
     havaleh: null,
     azad: null,
   });
+  const [selectedCat, setSelectedCat] = useState<number>(STEEL_CAT);
+
+  const filteredRaw = useMemo(
+    () => filterRawData(rawData, {
+      tasvieh: selectedTasvieh,
+      groups: selectedPackets,
+      producers: selectedProducers,
+    }),
+    [rawData, selectedTasvieh, selectedPackets, selectedProducers]
+  );
 
   // const fetchGlobalPrices = async () => {
   //   try {
@@ -122,7 +140,7 @@ export default function Home() {
       const response = await fetch('/api/fetch-data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromDate, toDate, subCat: selectedSubCat }),
+        body: JSON.stringify({ fromDate, toDate, subCat: selectedSubCat, cat: selectedCat }),
       });
 
       if (!response.ok) {
@@ -268,7 +286,17 @@ export default function Home() {
               {loading ? 'در حال دریافت…' : 'دریافت داده‌ها'}
             </button>
           </div>
-
+          <div className="md:col-span-2">
+            <label htmlFor="catSelect" className="mb-2 block text-[13px] text-slate">گروه اصلی</label>
+            <select
+              id="catSelect"
+              value={selectedCat}
+              onChange={(e) => { setSelectedCat(Number(e.target.value)); setSelectedSubCat(0); }}
+              className="field !py-3"
+            >
+              {CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            </select>
+          </div>
           <div className="md:col-span-2">
             <label htmlFor="subCatSelect" className="mb-2 block text-[13px] text-slate">
               زیرگروه کالا
@@ -278,6 +306,7 @@ export default function Home() {
               value={selectedSubCat}
               onChange={(e) => setSelectedSubCat(Number(e.target.value))}
               className="field !py-3"
+              disabled={selectedCat !== STEEL_CAT}
             >
               <option value="0">[همه زیرگروه‌ها]</option>
               <option value="1">بلوم و بیلت فولادی</option>
@@ -393,6 +422,8 @@ export default function Home() {
               </div>
               <DataTable data={filteredTable ?? []} globalPrices={globalPrices} currencyRates={currencyRates} />
             </div>
+            
+            <RawTradesChart rows={filteredRaw} />
 
             {/* Next-level tool: premium vs global parity */}
             <PremiumTracker data={aggregatedData} globalPrices={globalPrices} currencyRates={currencyRates} />

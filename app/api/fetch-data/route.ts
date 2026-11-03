@@ -4,7 +4,7 @@ import { fetchImeTradeData } from "@/lib/ime";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fromDate, toDate, subCat = 0 } = body;
+    const { fromDate, toDate, subCat = 0, cat = 1 } = body;
 
     if (!fromDate || !toDate) {
       return NextResponse.json(
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await fetchImeTradeData(fromDate, toDate, subCat);
+    const data = await fetchImeTradeData(fromDate, toDate, subCat, Number(cat));
     return NextResponse.json({ data });
   } catch (error) {
     console.error("API Error:", error);

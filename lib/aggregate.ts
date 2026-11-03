@@ -10,18 +10,40 @@ const GROUP_KEYWORDS = [
     "تیرآهن",
     "شمش",
     "کاتد",
+    "سنگ آهن",
+    "آهن اسفنجی",
 ];
+
+function normalizeFa(s: string): string {
+    return s.replace(/ي/g, "ی").replace(/ك/g, "ک");
+}
 
 /**
  * Maps a raw IME goods name to its commodity group.
  * Returns "سایر" for items that don't map cleanly to a tracked group.
  */
 export function getCommodityGroup(goodsName: string): string {
+    const name = normalizeFa(goodsName);
     for (const keyword of GROUP_KEYWORDS) {
-        if (goodsName.includes(keyword)) return keyword;
+        if (name.includes(keyword)) return keyword;
     }
-    if (goodsName.includes("ورق")) return "سایر";
-    return goodsName.split(/[- ]/)[0] || "سایر";
+    if (name.includes("ورق")) return "سایر";
+    return name.split(/[- ]/)[0] || "سایر";
+}
+
+export function filterRawData(
+    data: RawDataItem[],
+    filters: AggregateFilters = {}
+): RawDataItem[] {
+    const { tasvieh = [], groups = [], producers = [] } = filters;
+    return data.filter((item) => {
+        const groupName = getCommodityGroup(item.GoodsName);
+        if (groupName === "سایر") return false;
+        if (tasvieh.length > 0 && !tasvieh.includes(item.Tasvieh)) return false;
+        if (groups.length > 0 && !groups.includes(groupName)) return false;
+        if (producers.length > 0 && !producers.includes(item.ProducerName)) return false;
+        return true;
+    });
 }
 
 export type SettlementKind = "cash" | "credit" | "other";
@@ -63,16 +85,7 @@ export function aggregate(
     data: RawDataItem[],
     filters: AggregateFilters = {}
 ): AggregatedData[] {
-    const { tasvieh = [], groups = [], producers = [] } = filters;
-
-    const filtered = data.filter((item) => {
-        const groupName = getCommodityGroup(item.GoodsName);
-        if (groupName === "سایر") return false;
-        if (tasvieh.length > 0 && !tasvieh.includes(item.Tasvieh)) return false;
-        if (groups.length > 0 && !groups.includes(groupName)) return false;
-        if (producers.length > 0 && !producers.includes(item.ProducerName)) return false;
-        return true;
-    });
+    const filtered = filterRawData(data, filters);
 
     const grouped = new Map<
         string,
