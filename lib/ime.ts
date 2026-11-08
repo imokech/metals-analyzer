@@ -1,10 +1,16 @@
 import type { RawDataItem } from "@/types";
 import { config } from "@/lib/config";
 
+const IME_TIMEOUT_MS = 30_000;
+
 /**
  * Fetches raw IME (Iran Mercantile Exchange) trade rows for a date range.
- * Dates are Gregorian strings in the format the IME endpoint expects.
- * Shared by the /api/fetch-data route and the snapshot/backfill job.
+ *
+ * NOTE: dates are Jalali strings (YYYY/MM/DD). The IME field is named
+ * `GregorianFromDate`, but the endpoint accepts Jalali values (the dashboard
+ * depends on this), so they are passed through unchanged. Do not convert them.
+ *
+ * Shared by the /api/fetch-data route and the history sync job.
  */
 export async function fetchImeTradeData(
     fromDate: string,
@@ -27,17 +33,29 @@ export async function fetchImeTradeData(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: config.imeApiUrl, data: payload }),
+        signal: AbortSignal.timeout(IME_TIMEOUT_MS),
     });
 
+    // کد وضعیت را حتماً در پیام بگذارید؛ statusText در HTTP/2 خالی است
     if (!response.ok) {
-        throw new Error(`خطا در ارتباط با سرور: ${response.statusText}`);
+        throw new Error(`خطا در ارتباط با سرور: HTTP ${response.status}`);
     }
 
-    const jsonResponse = await response.json();
+    const text = await response.text();
+    let envelope: { d?: unknown };
+    try {
+        envelope = JSON.parse(text);
+    } catch {
+        throw new Error(`پاسخ پروکسی JSON نیست: ${text.slice(0, 120)}`);
+    }
 
-    if (!jsonResponse.d) {
+    if (typeof envelope.d !== "string" || envelope.d.length === 0) {
         throw new Error("فرمت پاسخ دریافت شده نامعتبر است.");
     }
 
-    return JSON.parse(jsonResponse.d) as RawDataItem[];
+    try {
+        return JSON.parse(envelope.d) as RawDataItem[];
+    } catch {
+        throw new Error(`داده IME قابل تجزیه نیست: ${envelope.d.slice(0, 120)}`);
+    }
 }

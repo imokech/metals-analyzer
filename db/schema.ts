@@ -1,5 +1,7 @@
-import { pgTable, serial, varchar, real, timestamp, boolean, text, integer } from "drizzle-orm/pg-core";
-
+import {
+    pgTable, serial, varchar, real, timestamp, boolean, text, integer,
+    smallint, bigserial, doublePrecision, jsonb, index, uniqueIndex,
+} from "drizzle-orm/pg-core";
 /* ------------------------------------------------------------------ */
 /* Better-auth core tables                                             */
 /* ------------------------------------------------------------------ */
@@ -114,3 +116,70 @@ export const imeTradeSnapshots = pgTable("ime_trade_snapshots", {
 export type CurrencySnapshot = typeof currencySnapshots.$inferSelect;
 export type GlobalPriceSnapshot = typeof globalPriceSnapshots.$inferSelect;
 export type ImeTradeSnapshot = typeof imeTradeSnapshots.$inferSelect;
+
+/* ------------------------------------------------------------------ */
+/* Raw IME trade history (fed by scripts/history-sync.ts)              */
+/* ------------------------------------------------------------------ */
+
+// One row per (cat, 7-day block). Doubles as the sync work queue.
+export const imeSyncWindows = pgTable(
+    "ime_sync_windows",
+    {
+        id: serial("id").primaryKey(),
+        cat: smallint("cat").notNull(),
+        fromJdate: varchar("from_jdate", { length: 10 }).notNull(),
+        toJdate: varchar("to_jdate", { length: 10 }).notNull(),
+        status: varchar("status", { length: 10 }).default("pending").notNull(), // pending | ok | empty | failed
+        attempts: integer("attempts").default(0).notNull(),
+        nextTryAt: timestamp("next_try_at"),
+        lastError: text("last_error"),
+        rowCount: integer("row_count"),
+        sumQuantity: doublePrecision("sum_quantity"),
+        sumTotalPrice: doublePrecision("sum_total_price"),
+        checksum: varchar("checksum", { length: 64 }),
+        fetchedAt: timestamp("fetched_at"),
+    },
+    (t) => ({
+        uq: uniqueIndex("ime_sync_windows_uq").on(t.cat, t.fromJdate, t.toJdate),
+    })
+);
+
+// Every raw row returned by IME, unaggregated. `raw` keeps the full original object.
+export const imeTrades = pgTable(
+    "ime_trades",
+    {
+        id: bigserial("id", { mode: "number" }).primaryKey(),
+        windowId: integer("window_id")
+            .notNull()
+            .references(() => imeSyncWindows.id, { onDelete: "cascade" }),
+        cat: smallint("cat").notNull(),
+        subCat: integer("sub_cat"),
+        jdate: varchar("jdate", { length: 10 }).notNull(),
+        jmonth: varchar("jmonth", { length: 7 }).notNull(),
+        goodsName: text("goods_name").notNull(),
+        producerName: text("producer_name"),
+        contractType: text("contract_type"),
+        tasvieh: text("tasvieh"),
+        packetName: text("packet_name"),
+        broker: text("broker"),
+        basePrice: doublePrecision("base_price"),
+        price: doublePrecision("price"),
+        minPrice: doublePrecision("min_price"),
+        maxPrice: doublePrecision("max_price"),
+        arze: doublePrecision("arze"),
+        taghaza: doublePrecision("taghaza"),
+        quantity: doublePrecision("quantity").notNull(),
+        totalPrice: doublePrecision("total_price").notNull(),
+        arzehPk: text("arzeh_pk"),
+        talarPk: integer("talar_pk"),
+        raw: jsonb("raw").notNull(),
+    },
+    (t) => ({
+        dateIdx: index("ime_trades_date_idx").on(t.cat, t.jdate),
+        goodsIdx: index("ime_trades_goods_idx").on(t.cat, t.goodsName, t.jdate),
+        windowIdx: index("ime_trades_window_idx").on(t.windowId),
+    })
+);
+
+export type ImeSyncWindow = typeof imeSyncWindows.$inferSelect;
+export type ImeTrade = typeof imeTrades.$inferSelect;
