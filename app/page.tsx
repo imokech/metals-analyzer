@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import type { RawDataItem, AggregatedData } from '../types';
 import DataTable from './components/DataTable';
 import Spinner from './components/Spinner';
@@ -231,6 +232,9 @@ export default function Home() {
         <p className="mt-4 text-body text-slate">
           قیمت‌های جهانی، نرخ دلار و شکاف قیمت با پارتیه جهانی را کنار آمار هفتگی بورس کالا ببینید.
         </p>
+        <div className="mt-4">
+          <Link href="/history" className="pill-ghost inline-flex">تاریخچه معاملات</Link>
+        </div>
       </header>
 
       {/* Currency stat cards */}
