@@ -10,6 +10,8 @@ const GROUP_KEYWORDS = [
     "تیرآهن",
     "شمش",
     "کاتد",
+    "گندله",
+    "کنسانتره",
     "سنگ آهن",
     "آهن اسفنجی",
 ];
@@ -24,6 +26,7 @@ function normalizeFa(s: string): string {
  */
 export function getCommodityGroup(goodsName: string): string {
     const name = normalizeFa(goodsName);
+    if (name.includes("بریکت")) return "سایر";
     for (const keyword of GROUP_KEYWORDS) {
         if (name.includes(keyword)) return keyword;
     }

@@ -15,6 +15,13 @@
       "when": 1783717744968,
       "tag": "0001_burly_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794144341962,
+      "tag": "0002_abandoned_union_jack",
+      "breakpoints": true
     }
   ]
 }

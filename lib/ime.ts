@@ -38,7 +38,8 @@ export async function fetchImeTradeData(
 
     // کد وضعیت را حتماً در پیام بگذارید؛ statusText در HTTP/2 خالی است
     if (!response.ok) {
-        throw new Error(`خطا در ارتباط با سرور: HTTP ${response.status}`);
+        const body = await response.text().catch(() => "");
+	throw new Error(`خطا در ارتباط با سرور: HTTP ${response.status} ${body.slice(0, 150)}`);
     }
 
     const text = await response.text();

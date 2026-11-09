@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchImeTradeData } from "@/lib/ime";
+import { dropExcludedRows } from "@/lib/history/config";
+
+const ALLOWED_CATS = [1, 49, 97];
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +15,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const catNum = Number(cat);
+    if (!ALLOWED_CATS.includes(catNum)) {
+      return NextResponse.json({ error: "cat نامعتبر است" }, { status: 400 });
+    }
 
-    const data = await fetchImeTradeData(fromDate, toDate, subCat, Number(cat));
+    const data = dropExcludedRows(
+      await fetchImeTradeData(fromDate, toDate, Number(subCat), catNum),
+      catNum
+    );
     return NextResponse.json({ data });
   } catch (error) {
     console.error("API Error:", error);
