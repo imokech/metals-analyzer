@@ -103,8 +103,14 @@ function toQuery(f: Filters, extra: Record<string, string | number> = {}): strin
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || 'خطا در ارتباط با سرور');
+  const text = await res.text();
+  let json: { error?: string } | null = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`پاسخ نامعتبر از سرور (HTTP ${res.status}) برای ${url}`);
+  }
+  if (!res.ok) throw new Error(json?.error || `خطا در ارتباط با سرور (HTTP ${res.status})`);
   return json as T;
 }
 
