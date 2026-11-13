@@ -34,6 +34,7 @@ interface Filters {
 interface ReportRow {
   period: string;
   group: string;
+  producer: string;
   trades: number;
   quantity: number;
   supply: number;
@@ -118,7 +119,7 @@ export default function HistoryPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [filters, setFilters] = useState<Filters | null>(null);
   const [applied, setApplied] = useState<Filters | null>(null);
-  const [report, setReport] = useState<{ series: ReportRow[]; totals: ReportRow[] } | null>(null);
+  const [report, setReport] = useState<{ series: ReportRow[]; totals: ReportRow[]; producerSeries: ReportRow[] } | null>(null);
   const [drill, setDrill] = useState<Drill | null>(null);
   const [trades, setTrades] = useState<{ rows: TradeRow[]; total: number } | null>(null);
   const [page, setPage] = useState(1);
@@ -153,7 +154,7 @@ export default function HistoryPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getJson<{ series: ReportRow[]; totals: ReportRow[] }>(
+    getJson<{ series: ReportRow[]; totals: ReportRow[]; producerSeries: ReportRow[] }>(
       `/api/history/report?${toQuery(applied, { period: applied.period })}`
     )
       .then((r) => {
@@ -375,7 +376,7 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              <HistoryCharts series={report.series} period={applied?.period ?? 'month'} />
+              <HistoryCharts series={report.series} producerSeries={report.producerSeries ?? []} period={applied?.period ?? 'month'} />
 
               <div>
                 <h2 className="mb-3 font-display text-heading-sm text-ink">جمع بازه به تفکیک گروه کالا</h2>

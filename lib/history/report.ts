@@ -16,6 +16,7 @@ export interface DbAggRow {
 interface Acc {
     period: string;
     group: string;
+    producer: string;
     trades: number;
     quantity: number;
     supply: number;
@@ -27,12 +28,13 @@ interface Acc {
     lastDate: string;
 }
 
-function getAcc(map: Map<string, Acc>, key: string, period: string, group: string): Acc {
+function getAcc(map: Map<string, Acc>, key: string, period: string, group: string, producer = ""): Acc {
     let acc = map.get(key);
     if (!acc) {
         acc = {
             period,
             group,
+            producer,
             trades: 0,
             quantity: 0,
             supply: 0,
@@ -52,6 +54,7 @@ function finish(a: Acc) {
     return {
         period: a.period,
         group: a.group,
+        producer: a.producer,
         trades: a.trades,
         quantity: a.quantity,
         supply: a.supply,
@@ -101,4 +104,41 @@ export function buildReport(rows: DbAggRow[]) {
             .map(finish)
             .sort((x, y) => y.value - x.value),
     };
+}
+
+export interface DbProducerAggRow extends DbAggRow {
+    producer_name: string | null;
+}
+
+/** سری دوره × تولیدکننده × گروه کالا (فقط وقتی فیلتر تولیدکننده فعال است) */
+export function buildProducerSeries(rows: DbProducerAggRow[]) {
+    const series = new Map<string, Acc>();
+
+    for (const r of rows) {
+        const group = getCommodityGroup(r.goods_name);
+        if (group === "سایر") continue;
+        const producer = r.producer_name ?? "نامشخص";
+        const kind = classifySettlement(r.tasvieh);
+        const quantity = Number(r.quantity);
+
+        const a = getAcc(series, `${r.period}|${producer}|${group}`, r.period, group, producer);
+        a.trades += Number(r.trades);
+        a.quantity += quantity;
+        a.supply += Number(r.supply);
+        a.value += Number(r.value);
+        a.baseValue += Number(r.base_value);
+        if (kind === "cash") a.cashQty += quantity;
+        else if (kind === "credit") a.creditQty += quantity;
+        if (r.first_date < a.firstDate) a.firstDate = r.first_date;
+        if (r.last_date > a.lastDate) a.lastDate = r.last_date;
+    }
+
+    return Array.from(series.values())
+        .map(finish)
+        .sort(
+            (x, y) =>
+                x.period.localeCompare(y.period) ||
+                x.producer.localeCompare(y.producer, "fa") ||
+                x.group.localeCompare(y.group, "fa")
+        );
 }

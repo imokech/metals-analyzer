@@ -16,6 +16,7 @@ import {
 export interface HistorySeriesRow {
   period: string;
   group: string;
+  producer?: string;
   quantity: number;
   value: number;
   averagePrice: number;
@@ -271,7 +272,7 @@ function YoyPanel({
     <>
       <div className="mb-4 flex flex-wrap items-center gap-4 text-[13px]">
         <label className="flex items-center gap-2 text-slate">
-          گروه کالا
+         گروه / شرکت
           <select
             className="field !w-auto !py-2"
             value={group}
@@ -331,16 +332,30 @@ function YoyPanel({
 /* ───────────── کارت اصلی ───────────── */
 
 export default function HistoryCharts({
-  series,
+  series: groupSeries,
+  producerSeries = [],
   period,
 }: {
   series: HistorySeriesRow[];
+  producerSeries?: HistorySeriesRow[];
   period: Period;
 }) {
   const [tab, setTab] = useState<TabKey>('price');
   const [selected, setSelected] = useState<string[]>([]);
 
-  // گروه‌ها به ترتیب ارزش کل
+  // وقتی فیلتر تولیدکننده فعال است، هر خط یک تولیدکننده است (و اگر چند گروه کالا باشد، «شرکت · گروه»)
+  const byProducer = producerSeries.length > 0;
+
+  const series = useMemo<HistorySeriesRow[]>(() => {
+    if (!byProducer) return groupSeries;
+    const multiGroup = new Set(producerSeries.map((r) => r.group)).size > 1;
+    return producerSeries.map((r) => ({
+      ...r,
+      group: multiGroup ? `${r.producer} · ${r.group}` : (r.producer ?? r.group),
+    }));
+  }, [byProducer, groupSeries, producerSeries]);
+
+  // گروه‌ها (یا تولیدکننده‌ها) به ترتیب ارزش کل
   const groups = useMemo(() => {
     const v = new Map<string, number>();
     series.forEach((r) => v.set(r.group, (v.get(r.group) ?? 0) + r.value));
@@ -349,8 +364,10 @@ export default function HistoryCharts({
 
   const active = useMemo(() => {
     const valid = selected.filter((g) => groups.includes(g));
-    return valid.length > 0 ? valid : groups.slice(0, MAX_DEFAULT_GROUPS);
-  }, [selected, groups]);
+    if (valid.length > 0) return valid;
+    // با فیلتر تولیدکننده، همه‌ی خط‌ها (تا ۸ تا) نمایش داده می‌شوند
+    return groups.slice(0, byProducer ? 8 : MAX_DEFAULT_GROUPS);
+  }, [selected, groups, byProducer]);
 
   const colorOf = useMemo(() => {
     const m = new Map(groups.map((g, i) => [g, PALETTE[i % PALETTE.length]]));
