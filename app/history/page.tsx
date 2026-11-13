@@ -98,7 +98,7 @@ function toQuery(f: Filters, extra: Record<string, string | number> = {}): strin
   f.tasvieh.forEach((v) => p.append('tasvieh', v));
   f.contracts.forEach((v) => p.append('contract', v));
   Object.entries(extra).forEach(([k, v]) => p.set(k, String(v)));
-  return p.toString();
+  return p.toString(); 
 }
 
 async function getJson<T>(url: string): Promise<T> {
