@@ -52,19 +52,16 @@ export function filterRawData(
 export type SettlementKind = "cash" | "credit" | "other";
 
 /**
- * Classifies the raw IME "Tasvieh" (settlement type) text as cash or credit.
- * IME's exact strings are not enumerated anywhere in this codebase (the
- * dashboard filter is populated from the data), so we match on stems that
- * avoid ی/ي and ک/ك spelling variants: "نقد" (نقدی) and "اعتبار" (اعتباری).
- * Anything else, or text containing both stems, is "other" and counts toward
- * neither percentage.
+ * Classifies the raw IME "Tasvieh" (settlement type) column.
+ * Rule: "نقدی" is a cash trade; anything mentioning "اعتبار"
+ * (e.g. "نقدی/اعتباری") is a credit trade. Because the credit value also
+ * contains the word "نقد", the credit check must come first.
+ * Any other value is "other" and counts toward neither percentage.
  */
 export function classifySettlement(tasvieh: string | null | undefined): SettlementKind {
-    const text = tasvieh ?? "";
-    const isCash = text.includes("نقد");
-    const isCredit = text.includes("اعتبار");
-    if (isCash && !isCredit) return "cash";
-    if (isCredit && !isCash) return "credit";
+    const text = normalizeFa(tasvieh ?? "");
+    if (text.includes("اعتبار")) return "credit";
+    if (text.includes("نقد")) return "cash";
     return "other";
 }
 
