@@ -16,8 +16,8 @@ export const historyConfig = {
     spotCheckSize: int(process.env.HISTORY_SPOT_CHECK_SIZE, 5),
 };
 
-// HISTORY_EXCLUDE_SUBCATS="97:2706,49:198,49:489"  ← فرمت cat:subCat با کاما
-const DEFAULT_EXCLUDED = "97:2706,49:198,49:489";
+// HISTORY_EXCLUDE_SUBCATS="49:198,49:489"  ← فرمت cat:subCat با کاما
+const DEFAULT_EXCLUDED = "49:198,49:489";
 
 function parseExcluded(raw: string | undefined): Map<number, Set<number>> {
     const map = new Map<number, Set<number>>();

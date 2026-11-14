@@ -29,7 +29,7 @@ const CAT_SUBCATS: Record<number, { allowAll: boolean; items: { code: number; na
       { code: 477, name: 'کنسانتره سنگ آهن' },
     ],
   },
-  97: { allowAll: false, items: [{ code: 452, name: 'آهن اسفنجی' }] },
+  97: { allowAll: true, items: [{ code: 452, name: 'آهن اسفنجی' }, { code: 2706, name: 'بریکت' }] },
 };
 
 const defaultSubCat = (cat: number): number => {
